@@ -6,6 +6,12 @@ const RTDB_BASE_URL =
 
 type RtdbMap<T> = Record<string, T> | null
 
+const RTDB_FETCH_MS = 60_000
+
+function rtdbFetchSignal(): AbortSignal {
+  return AbortSignal.timeout(RTDB_FETCH_MS)
+}
+
 /** URL REST do RTDB com token do utilizador (necessário se as regras exigirem auth). */
 async function urlRtdb(path: string): Promise<string> {
   const base = `${RTDB_BASE_URL}/${path}.json`
@@ -44,11 +50,12 @@ export type Cliente = {
 
 /** Monta o objeto enviado a `/clientes` com todos os dados da ficha (espelho da ordem). */
 export function clientePayloadDaOrdem(order: Order): Omit<Cliente, 'id'> {
+  const valor = Number(order.price ?? 0)
   return {
     nome: order.customerName,
     telefone: order.phone,
     email: order.email ?? '',
-    codigo: order.code,
+    codigo: String(order.code ?? ''),
     marca: order.brand,
     tipo: order.type,
     caixa: order.caseMaterial,
@@ -57,7 +64,7 @@ export function clientePayloadDaOrdem(order: Order): Omit<Cliente, 'id'> {
     mecanismo: order.mechanism,
     numero: order.number,
     servico: order.service,
-    valor: Number(order.price ?? 0),
+    valor: Number.isFinite(valor) ? valor : 0,
     dataEntrada: order.entryDate,
     dataPrevista: order.dueDate,
     observacoes: order.notes ?? '',
@@ -77,13 +84,22 @@ async function fetchJson<T>(
       'Content-Type': 'application/json',
     },
     ...options,
+    signal: rtdbFetchSignal(),
   })
 
   if (!res.ok) {
     throw new Error(`Erro na requisição RTDB: ${res.status} ${res.statusText}`)
   }
 
-  return (await res.json()) as T
+  const text = await res.text()
+  if (!text.trim()) {
+    return null as T
+  }
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    throw new Error('Resposta RTDB inválida (não é JSON).')
+  }
 }
 
 function withoutId<T extends { id?: unknown }>(data: T): Omit<T, 'id'> {
@@ -151,12 +167,30 @@ export async function obterCliente(id: string): Promise<Cliente | null> {
   return { id, ...data }
 }
 
+async function readRtdbErrorBody(res: Response): Promise<string> {
+  const text = await res.text()
+  if (!text) return res.statusText
+  try {
+    const j = JSON.parse(text) as { error?: string }
+    return typeof j.error === 'string' ? j.error : text
+  } catch {
+    return text
+  }
+}
+
 export async function criarCliente(
   dados: Omit<Cliente, 'id'>,
-): Promise<Cliente> {
+): Promise<{ cliente: Cliente; status: number }> {
+  if (!auth.currentUser) {
+    throw new Error(
+      'Sessão inválida. Saia e entre novamente para gravar em /clientes.',
+    )
+  }
+
   const url = await urlRtdb('clientes')
   const res = await fetch(url, {
     method: 'POST',
+    signal: rtdbFetchSignal(),
     headers: {
       'Content-Type': 'application/json',
     },
@@ -164,13 +198,15 @@ export async function criarCliente(
   })
 
   if (!res.ok) {
+    const detail = await readRtdbErrorBody(res)
     throw new Error(
-      `Erro ao criar cliente: ${res.status} ${res.statusText}`,
+      `Realtime Database (/clientes): ${res.status} — ${detail}`,
     )
   }
 
   const body = (await res.json()) as { name: string }
-  return { ...dados, id: body.name }
+  const cliente: Cliente = { ...dados, id: body.name }
+  return { cliente, status: res.status }
 }
 
 export async function atualizarCliente(
@@ -208,4 +244,28 @@ export async function removerCliente(id: string): Promise<void> {
   await fetchJson(`clientes/${id}`, {
     method: 'DELETE',
   })
+}
+
+/**
+ * POST em `/login.json` — espelho usuario/senha no Realtime Database.
+ * Deve ser chamado **depois** de `createUserWithEmailAndPassword`, para o `?auth=` existir nas regras.
+ */
+export async function salvarLoginRtdb(usuario: string, senha: string): Promise<void> {
+  const url = await urlRtdb('login')
+  const res = await fetch(url, {
+    method: 'POST',
+    signal: rtdbFetchSignal(),
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      usuario: usuario.trim().toLowerCase(),
+      senha,
+    }),
+  })
+
+  if (!res.ok) {
+    const detail = await readRtdbErrorBody(res)
+    throw new Error(`Realtime Database (/login): ${res.status} — ${detail}`)
+  }
 }

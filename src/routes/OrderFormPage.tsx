@@ -1,18 +1,28 @@
 import { type FormEvent, useEffect, useState } from 'react'
+import { flushSync } from 'react-dom'
+import {
+  centsDigitsToNumber,
+  formatMoneyFromCentDigits,
+  maskPhoneBR,
+  normalizeEmailInput,
+  priceToCentDigits,
+} from '../utils/masks'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
   createOrder,
+  deleteOrder,
   getOrderById,
   updateOrder,
 } from '../services/ordersService'
 import {
   atualizarEspelhoClientesPorOrdem,
-  clientePayloadDaOrdem,
-  criarCliente,
-  clienteParaOrdem,
   atualizarCliente,
+  clientePayloadDaOrdem,
+  clienteParaOrdem,
+  criarCliente,
   obterCliente,
+  removerCliente,
 } from '../services/realtimeDatabase'
 import type { Order, OrderFormType, OrderStatus } from '../types/order'
 import '../styles/order-form.css'
@@ -52,6 +62,8 @@ export function OrderFormPage() {
   const [loading, setLoading] = useState<boolean>(!!id || !!clienteId)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /** Centavos digitados para máscara de moeda (ex.: "1990" → R$ 19,90) */
+  const [priceCentDigits, setPriceCentDigits] = useState('0')
 
   const mode: FormMode = id || clienteId ? 'edit' : 'create'
 
@@ -66,7 +78,11 @@ export function OrderFormPage() {
       try {
         const existing = await getOrderById(id!)
         if (existing) {
-          setOrder(existing)
+          setOrder({
+            ...existing,
+            phone: maskPhoneBR(existing.phone || ''),
+            email: normalizeEmailInput(existing.email || ''),
+          })
         }
       } catch (err) {
         setError('Não foi possível carregar a ordem.')
@@ -79,7 +95,12 @@ export function OrderFormPage() {
       try {
         const c = await obterCliente(clienteId!)
         if (c) {
-          setOrder(clienteParaOrdem(c))
+          const o = clienteParaOrdem(c)
+          setOrder({
+            ...o,
+            phone: maskPhoneBR(o.phone || ''),
+            email: normalizeEmailInput(o.email || ''),
+          })
         }
       } catch (err) {
         setError('Não foi possível carregar a ficha (Realtime Database).')
@@ -88,6 +109,12 @@ export function OrderFormPage() {
       }
     }
   }, [id, clienteId])
+
+  useEffect(() => {
+    if (!loading) {
+      setPriceCentDigits(priceToCentDigits(order.price))
+    }
+  }, [loading, id, clienteId])
 
   function handleChange<K extends keyof Order>(field: K, value: Order[K]) {
     setOrder((prev) => ({ ...prev, [field]: value }))
@@ -101,18 +128,54 @@ export function OrderFormPage() {
 
     try {
       if (mode === 'create') {
-        const created = await createOrder(
-          {
-            ...order,
-            price: Number(order.price || 0),
-          },
-          user,
-        )
+        const { cliente: criado, status: statusCriarCliente } =
+          await criarCliente(clientePayloadDaOrdem(order))
+        const rtdbKey = criado.id
+        if (!rtdbKey) {
+          throw new Error('Realtime Database não devolveu o id do registo em clientes.')
+        }
 
-        await criarCliente({
-          ...clientePayloadDaOrdem(order),
-          idFirestore: created.id,
-        })
+        if (statusCriarCliente === 200) {
+          flushSync(() => {
+            setSaving(false)
+          })
+          navigate(
+            `/orders/cliente/${encodeURIComponent(rtdbKey)}/edit`,
+            { replace: true },
+          )
+        } else {
+          setError(
+            `Cadastro em clientes respondeu HTTP ${statusCriarCliente}; redirecionamento cancelado.`,
+          )
+        }
+
+        let created: Awaited<ReturnType<typeof createOrder>>
+        try {
+          created = await createOrder(
+            {
+              ...order,
+              price: Number(order.price || 0),
+            },
+            user,
+          )
+        } catch (fsErr) {
+          await removerCliente(rtdbKey).catch(() => {})
+          const msg = fsErr instanceof Error ? fsErr.message : String(fsErr)
+          alert(`Erro ao criar a ordem no Firestore. ${msg}`)
+          navigate('/orders/new', { replace: true })
+          throw fsErr
+        }
+
+        try {
+          await atualizarCliente(rtdbKey, { idFirestore: created.id })
+        } catch (patchErr) {
+          await deleteOrder(created.id).catch(() => {})
+          await removerCliente(rtdbKey).catch(() => {})
+          const msg = patchErr instanceof Error ? patchErr.message : String(patchErr)
+          alert(`Erro ao associar a ordem ao cliente (RTDB). ${msg}`)
+          navigate('/orders/new', { replace: true })
+          throw patchErr
+        }
       } else if (id) {
         const { id: _oid, ...payload } = order
         await updateOrder(id, {
@@ -120,6 +183,7 @@ export function OrderFormPage() {
           price: Number(order.price || 0),
         })
         await atualizarEspelhoClientesPorOrdem(id, order)
+        navigate('/orders')
       } else if (clienteId) {
         const payloadCliente = {
           ...clientePayloadDaOrdem(order),
@@ -133,11 +197,15 @@ export function OrderFormPage() {
             price: Number(order.price || 0),
           })
         }
+        navigate('/orders')
       }
-
-      navigate('/orders')
     } catch (err) {
-      setError('Erro ao salvar a ordem. Verifique os dados e tente novamente.')
+      const detail = err instanceof Error ? err.message : String(err)
+      setError(
+        detail.includes('Realtime Database') || detail.includes('/clientes')
+          ? `Não foi possível gravar em clientes (Realtime Database). ${detail}`
+          : `Erro ao salvar a ordem. ${detail}`,
+      )
     } finally {
       setSaving(false)
     }
@@ -160,6 +228,15 @@ export function OrderFormPage() {
   if (loading) {
     return (
       <div className="order-form-layout">
+        <div className="order-form-toolbar">
+          <button
+            type="button"
+            className="order-form-secondary order-form-back"
+            onClick={() => navigate('/orders')}
+          >
+            ← Voltar às ordens
+          </button>
+        </div>
         <p>Carregando...</p>
       </div>
     )
@@ -167,6 +244,15 @@ export function OrderFormPage() {
 
   return (
     <div className="order-form-layout">
+      <div className="order-form-toolbar">
+        <button
+          type="button"
+          className="order-form-secondary order-form-back"
+          onClick={() => navigate('/orders')}
+        >
+          ← Voltar às ordens
+        </button>
+      </div>
       <header className="order-form-header">
         <h1>Relojoaria Aprígio - Valença RJ</h1>
         <p>{headerTitle(order.formType)}</p>
@@ -183,6 +269,7 @@ export function OrderFormPage() {
               Código
               <input
                 type="text"
+                inputMode="numeric"
                 value={order.code}
                 onChange={(e) => handleChange('code', e.target.value)}
                 required
@@ -229,17 +316,28 @@ export function OrderFormPage() {
             <label>
               Telefone
               <input
-                type="text"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                placeholder="(00) 00000-0000"
                 value={order.phone}
-                onChange={(e) => handleChange('phone', e.target.value)}
+                onChange={(e) =>
+                  handleChange('phone', maskPhoneBR(e.target.value))
+                }
               />
             </label>
             <label>
               E-mail
               <input
                 type="email"
+                inputMode="email"
+                autoComplete="email"
+                placeholder="nome@exemplo.com"
+                title="E-mail sem espaços, em minúsculas"
                 value={order.email ?? ''}
-                onChange={(e) => handleChange('email', e.target.value)}
+                onChange={(e) =>
+                  handleChange('email', normalizeEmailInput(e.target.value))
+                }
               />
             </label>
           </div>
@@ -321,12 +419,17 @@ export function OrderFormPage() {
             <label>
               Valor (R$)
               <input
-                type="number"
-                step="0.01"
-                value={String(order.price ?? 0)}
-                onChange={(e) =>
-                  handleChange('price', Number(e.target.value || 0))
-                }
+                type="text"
+                inputMode="numeric"
+                autoComplete="transaction-amount"
+                placeholder="0,00"
+                aria-label="Valor em reais"
+                value={formatMoneyFromCentDigits(priceCentDigits)}
+                onChange={(e) => {
+                  const raw = e.target.value.replace(/\D/g, '').slice(0, 14)
+                  setPriceCentDigits(raw || '0')
+                  handleChange('price', centsDigitsToNumber(raw || '0'))
+                }}
               />
             </label>
             <label>

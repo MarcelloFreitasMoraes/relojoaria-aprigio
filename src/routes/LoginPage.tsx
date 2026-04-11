@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { createUserWithEmailAndPassword } from 'firebase/auth'
 import { useAuth } from '../context/AuthContext'
 import { auth } from '../services/firebase'
+import { salvarLoginRtdb } from '../services/realtimeDatabase'
+import { usernameToAuthEmail } from '../utils/authUsername'
 import '../styles/auth.css'
 
 type Mode = 'login' | 'register'
@@ -10,7 +12,7 @@ type Mode = 'login' | 'register'
 export function LoginPage() {
   const { signIn } = useAuth()
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -22,19 +24,36 @@ export function LoginPage() {
     setLoading(true)
 
     try {
+      const authEmail = usernameToAuthEmail(username)
+
       if (mode === 'login') {
-        await signIn(email, password)
+        await signIn(authEmail, password)
       } else {
-        await createUserWithEmailAndPassword(auth, email, password)
+        await createUserWithEmailAndPassword(auth, authEmail, password)
+        await salvarLoginRtdb(username, password)
       }
 
       navigate('/orders')
-    } catch (err: any) {
-      setError(
-        mode === 'login'
-          ? 'Não foi possível entrar. Verifique e-mail e senha.'
-          : 'Não foi possível cadastrar. Verifique os dados e tente novamente.',
-      )
+    } catch (err: unknown) {
+      const code =
+        err && typeof err === 'object' && 'code' in err
+          ? String((err as { code: string }).code)
+          : ''
+      if (mode === 'register' && code === 'auth/email-already-in-use') {
+        setError('Este usuário já está cadastrado. Faça login ou use outro nome.')
+      } else if (mode === 'login' && code === 'auth/invalid-credential') {
+        setError('Usuário ou senha incorretos.')
+      } else if (mode === 'login' && code === 'auth/user-not-found') {
+        setError('Usuário não encontrado.')
+      } else if (err instanceof Error && err.message.startsWith('Usuário')) {
+        setError(err.message)
+      } else {
+        setError(
+          mode === 'login'
+            ? 'Não foi possível entrar. Verifique usuário e senha.'
+            : 'Não foi possível cadastrar. Verifique os dados e tente novamente.',
+        )
+      }
     } finally {
       setLoading(false)
     }
@@ -52,12 +71,13 @@ export function LoginPage() {
 
         <form className="auth-form" onSubmit={handleSubmit}>
           <label className="auth-field">
-            <span>E-mail</span>
+            <span>Usuário</span>
             <input
-              type="email"
-              value={email}
+              type="text"
+              value={username}
               autoComplete="username"
-              onChange={(e) => setEmail(e.target.value)}
+              placeholder="ex.: maria.silva"
+              onChange={(e) => setUsername(e.target.value)}
               required
             />
           </label>
@@ -70,6 +90,7 @@ export function LoginPage() {
               autoComplete={isLogin ? 'current-password' : 'new-password'}
               onChange={(e) => setPassword(e.target.value)}
               required
+              minLength={6}
             />
           </label>
 
@@ -81,8 +102,8 @@ export function LoginPage() {
                 ? 'Entrando...'
                 : 'Cadastrando...'
               : isLogin
-              ? 'Entrar'
-              : 'Cadastrar'}
+                ? 'Entrar'
+                : 'Cadastrar'}
           </button>
         </form>
 
@@ -93,7 +114,10 @@ export function LoginPage() {
               <button
                 type="button"
                 className="auth-link-button"
-                onClick={() => setMode('register')}
+                onClick={() => {
+                  setMode('register')
+                  setError(null)
+                }}
               >
                 Cadastrar novo usuário
               </button>
@@ -104,7 +128,10 @@ export function LoginPage() {
               <button
                 type="button"
                 className="auth-link-button"
-                onClick={() => setMode('login')}
+                onClick={() => {
+                  setMode('login')
+                  setError(null)
+                }}
               >
                 Fazer login
               </button>
@@ -115,4 +142,3 @@ export function LoginPage() {
     </div>
   )
 }
-
