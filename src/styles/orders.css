@@ -1,0 +1,208 @@
+.app-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: radial-gradient(circle at top left, #e5e7eb, #f9fafb);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.app-header {
+  padding: 1.5rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.35);
+  backdrop-filter: blur(12px);
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1.4rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #111827;
+}
+
+.app-header p {
+  margin: 0.15rem 0 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.header-logout {
+  border-radius: 999px;
+  border: none;
+  padding: 0.55rem 1.3rem;
+  background: #111827;
+  color: white;
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.orders-main {
+  padding: 1.75rem 2rem 2.5rem;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.orders-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.orders-search {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.orders-search select,
+.orders-search input {
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.9rem;
+}
+
+.orders-search button {
+  border-radius: 999px;
+  border: none;
+  padding: 0.45rem 1.1rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.orders-search button[type='submit'] {
+  background: #4f46e5;
+  color: white;
+}
+
+.orders-search button[type='button'] {
+  background: white;
+  border: 1px solid #e5e7eb;
+}
+
+.orders-new {
+  margin-left: auto;
+  border-radius: 999px;
+  padding: 0.55rem 1.4rem;
+  background: #16a34a;
+  color: white;
+  font-size: 0.9rem;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.orders-error {
+  color: #b91c1c;
+  margin-bottom: 0.75rem;
+}
+
+.orders-list-hint {
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.orders-loading-inline {
+  margin-top: 0;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
+.orders-actions-missing {
+  color: #94a3b8;
+  cursor: help;
+}
+
+.orders-loading {
+  margin-top: 1.5rem;
+}
+
+.orders-table-wrapper {
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12);
+  overflow: hidden;
+}
+
+.orders-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.orders-table thead {
+  background: #f3f4f6;
+}
+
+.orders-table th,
+.orders-table td {
+  padding: 0.65rem 0.9rem;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.orders-table th {
+  font-weight: 600;
+  color: #4b5563;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.orders-table tbody tr:nth-child(even) {
+  background: #f9fafb;
+}
+
+.orders-actions {
+  white-space: normal;
+}
+
+.orders-actions a {
+  font-size: 0.82rem;
+  margin-right: 0.75rem;
+}
+
+.orders-action-delete {
+  margin-left: 0.35rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.78rem;
+  border: 1px solid #fecaca;
+  border-radius: 0.35rem;
+  background: #fef2f2;
+  color: #b91c1c;
+  cursor: pointer;
+}
+
+.orders-action-delete:hover:not(:disabled) {
+  background: #fee2e2;
+}
+
+.orders-action-delete:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+  .app-header {
+    padding-inline: 1.25rem;
+  }
+
+  .orders-main {
+    padding-inline: 1.25rem;
+  }
+
+  .orders-table {
+    font-size: 0.8rem;
+  }
+}
+

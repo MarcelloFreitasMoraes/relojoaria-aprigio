@@ -1,0 +1,89 @@
+.print-layout {
+  min-height: 100vh;
+  padding: 1.5rem;
+  background: #e5e7eb;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+.print-actions {
+  margin-bottom: 1rem;
+}
+
+.print-actions button {
+  border-radius: 999px;
+  border: none;
+  padding: 0.5rem 1.3rem;
+  background: #111827;
+  color: white;
+  cursor: pointer;
+}
+
+.print-sheet {
+  max-width: 900px;
+  margin: 0 auto;
+  background: white;
+  padding: 1.25rem 1.5rem;
+  border-radius: 0.5rem;
+}
+
+.print-header {
+  text-align: center;
+  border-bottom: 1px solid #d1d5db;
+  padding-bottom: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.print-header h1 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.print-header h2 {
+  margin: 0.25rem 0 0;
+  font-size: 1rem;
+}
+
+.print-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.print-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.4rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.print-label {
+  font-weight: 600;
+  margin-right: 0.25rem;
+}
+
+.print-notes > div {
+  margin-bottom: 0.5rem;
+}
+
+.print-terms {
+  margin-top: 0.75rem;
+  font-size: 0.8rem;
+}
+
+@media print {
+  .no-print {
+    display: none;
+  }
+
+  .print-layout {
+    background: white;
+    padding: 0;
+  }
+
+  .print-sheet {
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+
