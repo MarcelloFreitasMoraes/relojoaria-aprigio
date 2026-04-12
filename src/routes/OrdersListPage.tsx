@@ -13,6 +13,12 @@ import '../styles/orders.css'
 
 type SearchMode = 'code' | 'name' | 'number'
 
+const SEARCH_PLACEHOLDERS: Record<SearchMode, string> = {
+  code: '2026-00000X',
+  name: 'Ex.: Maria Silva',
+  number: 'Digite o Número',
+}
+
 type ListRow = {
   /** Chave do nó em `/clientes` (Realtime Database) */
   rtdbKey: string
@@ -150,7 +156,7 @@ export function OrdersListPage() {
             </select>
             <input
               type="text"
-              placeholder="Buscar (deixe vazio e Buscar para recarregar tudo)"
+              placeholder={SEARCH_PLACEHOLDERS[searchMode]}
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
             />

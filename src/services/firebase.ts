@@ -6,6 +6,7 @@ import {
   signOut,
   type User,
 } from 'firebase/auth'
+import { getDatabase } from 'firebase/database'
 import {
   getFirestore,
   serverTimestamp,
@@ -26,6 +27,11 @@ import {
 // VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, etc.
 // Veja o README para o passo a passo de configuração no console do Firebase.
 
+/** Mesma instância usada em REST (`realtimeDatabase.ts`). Necessário para `getDatabase`. */
+const RTDB_DATABASE_URL =
+  import.meta.env.VITE_FIREBASE_DATABASE_URL ??
+  'https://relojoaria-aprigio-cad-cli-default-rtdb.firebaseio.com'
+
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -33,6 +39,7 @@ const firebaseConfig = {
   storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  databaseURL: RTDB_DATABASE_URL,
 }
 
 function assertFirebaseConfig() {
@@ -62,6 +69,8 @@ const app = initializeApp(firebaseConfig)
 
 export const auth = getAuth(app)
 export const db = getFirestore(app)
+/** Realtime Database (SDK) — contador `ordemServicoCounter`, mesmas regras que `clientes`. */
+export const rtdb = getDatabase(app)
 
 export const firebaseUtils = {
   onAuthStateChanged,

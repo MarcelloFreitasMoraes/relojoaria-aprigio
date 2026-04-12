@@ -71,3 +71,18 @@ export default defineConfig([
   },
 ])
 ```
+
+## Firebase — contador de número de ordem (Realtime Database)
+
+A app grava o contador no nó **`ordemServicoCounter`** na raiz do **Realtime Database** (campos `year` e `seq`), com transação atómica. O número de protocolo é obtido com **`allocateNextOrdemServicoCode()`** ao clicar em **Salvar ordem** (nova ficha); o valor segue para **`order.code`** e para **`codigo`** em **`clientes`**.
+
+No **Realtime Database → Regras**, exemplo alinhado com `clientes`:
+
+```json
+"ordemServicoCounter": {
+  ".read": "auth != null",
+  ".write": "auth != null"
+}
+```
+
+Sem permissão de escrita neste nó, `allocateNextOrdemServicoCode()` falha. Opcional: define `VITE_FIREBASE_DATABASE_URL` no `.env.local` se a URL da base for diferente da predefinida no código.

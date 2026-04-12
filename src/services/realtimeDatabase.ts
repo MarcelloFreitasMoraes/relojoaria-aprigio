@@ -45,6 +45,8 @@ export type Cliente = {
   condicoes?: string
   situacao?: string
   tipoFicha?: string
+  criadoOuModificado?: string
+  dataCriadoOuModificado?: string
   [key: string]: any
 }
 
@@ -71,6 +73,8 @@ export function clientePayloadDaOrdem(order: Order): Omit<Cliente, 'id'> {
     condicoes: order.conditions ?? '',
     situacao: order.status,
     tipoFicha: order.formType,
+    criadoOuModificado: order.criadoOuModificado,
+    dataCriadoOuModificado: order.dataCriadoOuModificado,
   }
 }
 
@@ -149,6 +153,12 @@ export function clienteParaOrdem(c: Cliente): Order {
     conditions: c.condicoes,
     status: statusOk,
     formType: tipoFicha,
+    criadoOuModificado:
+      typeof c.criadoOuModificado === 'string' ? c.criadoOuModificado : undefined,
+    dataCriadoOuModificado:
+      typeof c.dataCriadoOuModificado === 'string'
+        ? c.dataCriadoOuModificado
+        : undefined,
   }
 }
 

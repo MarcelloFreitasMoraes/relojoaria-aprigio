@@ -1,0 +1,12 @@
+{
+  "rules": {
+    "clientes": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "login": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    }
+  }
+}

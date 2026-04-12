@@ -24,6 +24,8 @@ import {
   obterCliente,
   removerCliente,
 } from '../services/realtimeDatabase'
+import { allocateNextOrdemServicoCode } from '../services/orderCounter'
+import { historicoGravacaoFromUser } from '../utils/historicoGravacao'
 import type { Order, OrderFormType, OrderStatus } from '../types/order'
 import '../styles/order-form.css'
 
@@ -127,9 +129,18 @@ export function OrderFormPage() {
     setError(null)
 
     try {
+      const hist = historicoGravacaoFromUser(user)
+      const orderComHistorico: Order = { ...order, ...hist }
+
       if (mode === 'create') {
+        const protocolCode = await allocateNextOrdemServicoCode()
+        const orderWithCode: Order = { ...orderComHistorico, code: protocolCode }
+        flushSync(() => {
+          setOrder(orderWithCode)
+        })
+
         const { cliente: criado, status: statusCriarCliente } =
-          await criarCliente(clientePayloadDaOrdem(order))
+          await criarCliente(clientePayloadDaOrdem(orderWithCode))
         const rtdbKey = criado.id
         if (!rtdbKey) {
           throw new Error('Realtime Database não devolveu o id do registo em clientes.')
@@ -153,8 +164,8 @@ export function OrderFormPage() {
         try {
           created = await createOrder(
             {
-              ...order,
-              price: Number(order.price || 0),
+              ...orderWithCode,
+              price: Number(orderWithCode.price || 0),
             },
             user,
           )
@@ -177,24 +188,24 @@ export function OrderFormPage() {
           throw patchErr
         }
       } else if (id) {
-        const { id: _oid, ...payload } = order
+        const { id: _oid, ...payload } = orderComHistorico
         await updateOrder(id, {
           ...payload,
-          price: Number(order.price || 0),
+          price: Number(orderComHistorico.price || 0),
         })
-        await atualizarEspelhoClientesPorOrdem(id, order)
+        await atualizarEspelhoClientesPorOrdem(id, orderComHistorico)
         navigate('/orders')
       } else if (clienteId) {
         const payloadCliente = {
-          ...clientePayloadDaOrdem(order),
+          ...clientePayloadDaOrdem(orderComHistorico),
           idFirestore: order.id,
         }
         await atualizarCliente(clienteId, payloadCliente)
         if (order.id) {
-          const { id: _oid, ...payload } = order
+          const { id: _oid, ...payload } = orderComHistorico
           await updateOrder(order.id, {
             ...payload,
-            price: Number(order.price || 0),
+            price: Number(orderComHistorico.price || 0),
           })
         }
         navigate('/orders')
@@ -272,7 +283,15 @@ export function OrderFormPage() {
                 inputMode="numeric"
                 value={order.code}
                 onChange={(e) => handleChange('code', e.target.value)}
-                required
+                readOnly={mode === 'create'}
+                placeholder={mode === 'create' ? 'Gerado ao salvar' : undefined}
+                title={
+                  mode === 'create'
+                    ? 'O número de protocolo é gerado ao clicar em Salvar ordem'
+                    : undefined
+                }
+                required={mode !== 'create'}
+                disabled
               />
             </label>
           </div>

@@ -116,6 +116,14 @@ function normalizeOrder(id: string, data: any): Order {
     conditions: data.conditions ?? '',
     status: data.status ?? 'analise',
     formType: data.formType ?? 'loja',
+    criadoOuModificado:
+      typeof data.criadoOuModificado === 'string'
+        ? data.criadoOuModificado
+        : undefined,
+    dataCriadoOuModificado:
+      typeof data.dataCriadoOuModificado === 'string'
+        ? data.dataCriadoOuModificado
+        : undefined,
     createdAt: data.createdAt?.toDate?.() ?? undefined,
     updatedAt: data.updatedAt?.toDate?.() ?? undefined,
     createdBy: data.createdBy,

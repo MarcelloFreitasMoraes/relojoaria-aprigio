@@ -23,6 +23,10 @@ export interface Order {
   conditions?: string
   status: OrderStatus
   formType: OrderFormType
+  /** Último utilizador que gravou (nome legível); não exibido no formulário. */
+  criadoOuModificado?: string
+  /** Última gravação `YYYY-MM-DD HH:mm` (hora local); não exibido no formulário. */
+  dataCriadoOuModificado?: string
   createdAt?: Date
   updatedAt?: Date
   createdBy?: string
