@@ -1,4 +1,5 @@
 import { ref, runTransaction } from 'firebase/database'
+import { trackPromise } from '@/lib/globalLoadingStore'
 import { rtdb } from './firebase'
 
 /** Nó na raiz do RTDB — alinhado com as regras `ordemServicoCounter`. */
@@ -13,28 +14,30 @@ type CounterState = { year: number; seq: number }
 export async function allocateNextOrdemServicoCode(): Promise<string> {
   const counterRef = ref(rtdb, COUNTER_PATH)
 
-  const result = await runTransaction(counterRef, (current) => {
-    const currentYear = new Date().getFullYear()
-    let year: number
-    let seq: number
+  const result = await trackPromise(
+    runTransaction(counterRef, (current) => {
+      const currentYear = new Date().getFullYear()
+      let year: number
+      let seq: number
 
-    const c = current as CounterState | null | undefined
-    if (c == null || typeof c !== 'object' || typeof c.year !== 'number') {
-      year = currentYear
-      seq = 1
-    } else {
-      const storedYear = c.year
-      const storedSeq = typeof c.seq === 'number' ? c.seq : 0
-      if (storedYear !== currentYear) {
+      const c = current as CounterState | null | undefined
+      if (c == null || typeof c !== 'object' || typeof c.year !== 'number') {
         year = currentYear
         seq = 1
       } else {
-        year = currentYear
-        seq = storedSeq + 1
+        const storedYear = c.year
+        const storedSeq = typeof c.seq === 'number' ? c.seq : 0
+        if (storedYear !== currentYear) {
+          year = currentYear
+          seq = 1
+        } else {
+          year = currentYear
+          seq = storedSeq + 1
+        }
       }
-    }
-    return { year, seq }
-  })
+      return { year, seq }
+    }),
+  )
 
   const val = result.snapshot.val() as CounterState | null
   if (!val || typeof val.year !== 'number' || typeof val.seq !== 'number') {

@@ -23,6 +23,8 @@ export interface Order {
   conditions?: string
   status: OrderStatus
   formType: OrderFormType
+  /** Cliente aceitou os termos no formulário (gravado no Firestore). */
+  aceitoTermos?: boolean
   /** Último utilizador que gravou (nome legível); não exibido no formulário. */
   criadoOuModificado?: string
   /** Última gravação `YYYY-MM-DD HH:mm` (hora local); não exibido no formulário. */

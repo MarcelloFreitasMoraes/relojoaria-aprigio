@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app'
 import {
+  createUserWithEmailAndPassword,
   getAuth,
   onAuthStateChanged,
   signInWithEmailAndPassword,
@@ -22,6 +23,14 @@ import {
   getDocs,
   deleteDoc,
 } from 'firebase/firestore'
+
+import { trackPromise } from '@/lib/globalLoadingStore'
+
+function wrapAsync<TArgs extends unknown[], TResult>(
+  fn: (...args: TArgs) => Promise<TResult>,
+): (...args: TArgs) => Promise<TResult> {
+  return (...args: TArgs) => trackPromise(fn(...args))
+}
 
 // As credenciais reais devem ser definidas nas variáveis de ambiente Vite:
 // VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN, etc.
@@ -74,21 +83,30 @@ export const rtdb = getDatabase(app)
 
 export const firebaseUtils = {
   onAuthStateChanged,
-  signInWithEmailAndPassword,
-  signOut,
+  signInWithEmailAndPassword: wrapAsync(
+    signInWithEmailAndPassword,
+  ) as typeof signInWithEmailAndPassword,
+  signOut: wrapAsync(signOut) as typeof signOut,
   serverTimestamp,
   collection,
+  /** Escrita sem overlay global (evita bloqueio com token/canal Firestore no submit). */
   addDoc,
   doc,
+  /** Leituras não entram no overlay global (evita sobreposição com canal Firestore + listagens). */
   getDoc,
-  updateDoc,
+  updateDoc: wrapAsync(updateDoc) as typeof updateDoc,
   query,
   where,
   orderBy,
   limit,
   getDocs,
-  deleteDoc,
+  deleteDoc: wrapAsync(deleteDoc) as typeof deleteDoc,
 }
+
+/** Mesmo SDK que `firebase/auth`, com loading global. */
+export const createUserWithEmailAndPasswordTracked = wrapAsync(
+  createUserWithEmailAndPassword,
+) as typeof createUserWithEmailAndPassword
 
 export type FirebaseUser = User
 

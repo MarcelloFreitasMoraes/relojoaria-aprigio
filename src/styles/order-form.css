@@ -82,11 +82,55 @@
   grid-column: 1 / -1;
 }
 
-.order-form label {
+/* Uma linha: nome mais largo que telefone e e-mail */
+.order-form-grid-cliente {
+  display: grid;
+  grid-template-columns: minmax(0, 2.15fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.75rem 1rem;
+  align-items: start;
+}
+
+/* Relógio: sempre 4 colunas em ecrãs médios+ */
+.order-form-grid-watch {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+  align-items: start;
+}
+
+/* Valor + datas + situação: 4 colunas */
+.order-form-grid-service-meta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem 1rem;
+  margin-top: 0.85rem;
+  align-items: start;
+}
+
+/* Observações e condições lado a lado */
+.order-form-grid-textareas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem 1rem;
+  margin-top: 0.85rem;
+  align-items: start;
+}
+
+/* Campo: rótulo em cima, alinhado à esquerda */
+.order-form-field {
   display: flex;
   flex-direction: column;
-  font-size: 0.85rem;
+  align-items: flex-start;
   gap: 0.25rem;
+  width: 100%;
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+.order-form-field [data-slot="label"] {
+  display: block;
+  width: 100%;
+  text-align: left;
 }
 
 .order-form input,
@@ -113,9 +157,42 @@
 
 .order-form-footer {
   margin-top: 1.5rem;
+}
+
+.order-form-footer-row {
   display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+}
+
+.order-form-footer-actions {
+  display: flex;
+  flex-shrink: 0;
   justify-content: flex-end;
   gap: 0.75rem;
+}
+
+.order-form-footer-client {
+  flex: 1 1 260px;
+  max-width: 28rem;
+  min-width: min(100%, 260px);
+}
+
+.order-form-terms-accept {
+  user-select: none;
+}
+
+.order-form-signature {
+  width: 100%;
+}
+
+.order-form-signature-line {
+  min-height: 3.5rem;
+  border: 1px dashed #d1d5db;
+  border-radius: 0.5rem;
+  background: #fafafa;
 }
 
 .order-form-primary,
@@ -154,6 +231,118 @@
 
   .order-form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .order-form-grid-watch {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .order-form-grid-service-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .order-form-grid-textareas {
+    grid-template-columns: 1fr;
+  }
+
+  .order-form-footer-client {
+    max-width: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .order-form-grid-cliente {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .order-form-grid-watch {
+    grid-template-columns: 1fr;
+  }
+
+  .order-form-grid-service-meta {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Uma folha A4 na impressão: margens reduzidas, grelha mais densa, sem sombras. */
+@media print {
+  .order-form-print-root {
+    min-height: auto;
+    padding: 0.35cm 0.5cm 0.5cm !important;
+    background: #fff !important;
+  }
+
+  .order-form {
+    box-shadow: none !important;
+    padding: 0.35rem 0.5rem 0.5rem !important;
+    border-radius: 0 !important;
+  }
+
+  .order-form-header {
+    margin-bottom: 0.5rem !important;
+  }
+
+  .order-form-header h1 {
+    font-size: 1.05rem !important;
+    letter-spacing: 0.06em !important;
+  }
+
+  .order-form-header p {
+    margin: 0.15rem 0 !important;
+    font-size: 0.78rem !important;
+  }
+
+  .order-form-subheader {
+    font-size: 0.68rem !important;
+  }
+
+  .order-form-section-print {
+    margin-top: 0.4rem !important;
+    page-break-inside: avoid;
+  }
+
+  .order-form-section h2 {
+    margin-bottom: 0.25rem !important;
+    font-size: 0.82rem !important;
+  }
+
+  .order-form-grid-cliente {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) !important;
+    gap: 0.2rem 0.35rem !important;
+  }
+
+  .order-form-grid-watch,
+  .order-form-grid-service-meta {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 0.2rem 0.35rem !important;
+  }
+
+  .order-form-grid-textareas {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.2rem 0.35rem !important;
+  }
+
+  .order-form-topline {
+    margin-bottom: 0.35rem !important;
+    gap: 0.75rem !important;
+  }
+
+  .order-form-terms {
+    font-size: 0.65rem !important;
+    line-height: 1.25 !important;
+    padding: 0.3rem 0.4rem !important;
+  }
+
+  .order-form-footer-row {
+    margin-top: 0.5rem !important;
+    page-break-inside: avoid;
+  }
+
+  .order-form-signature-line {
+    min-height: 2.8rem;
+    background: #fff !important;
   }
 }
 

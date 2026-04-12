@@ -1,5 +1,6 @@
 import { auth } from './firebase'
-import type { Order, OrderFormType, OrderStatus } from '../types/order'
+import type { Order, OrderFormType } from '../types/order'
+import { normalizeOrderStatus } from '../utils/orderLabels'
 
 const RTDB_BASE_URL =
   'https://relojoaria-aprigio-cad-cli-default-rtdb.firebaseio.com'
@@ -12,12 +13,23 @@ function rtdbFetchSignal(): AbortSignal {
   return AbortSignal.timeout(RTDB_FETCH_MS)
 }
 
+/**
+ * Token para `?auth=` nas URLs REST do RTDB (cache local; evita vários pedidos em sequência).
+ * Usa `getIdToken(false)` para não forçar refresh em cada chamada.
+ */
+export async function getRtdbAuthToken(): Promise<string | undefined> {
+  const user = auth.currentUser
+  if (!user) return undefined
+  return user.getIdToken(false)
+}
+
 /** URL REST do RTDB com token do utilizador (necessário se as regras exigirem auth). */
-async function urlRtdb(path: string): Promise<string> {
+async function urlRtdb(path: string, authToken?: string): Promise<string> {
   const base = `${RTDB_BASE_URL}/${path}.json`
   const user = auth.currentUser
   if (!user) return base
-  const token = await user.getIdToken()
+  const token =
+    authToken !== undefined ? authToken : await user.getIdToken(false)
   return `${base}?auth=${encodeURIComponent(token)}`
 }
 
@@ -81,8 +93,9 @@ export function clientePayloadDaOrdem(order: Order): Omit<Cliente, 'id'> {
 async function fetchJson<T>(
   path: string,
   options?: RequestInit,
+  authToken?: string,
 ): Promise<T> {
-  const url = await urlRtdb(path)
+  const url = await urlRtdb(path, authToken)
   const res = await fetch(url, {
     headers: {
       'Content-Type': 'application/json',
@@ -123,12 +136,7 @@ export async function listarClientes(): Promise<Cliente[]> {
 
 /** Converte registo RTDB `/clientes` para o formato de ordem usado na UI. */
 export function clienteParaOrdem(c: Cliente): Order {
-  const situacao = String(c.situacao ?? 'analise')
-  const statusOk: OrderStatus = ['analise', 'servico', 'pronto', 'entregue'].includes(
-    situacao,
-  )
-    ? (situacao as OrderStatus)
-    : 'analise'
+  const statusOk = normalizeOrderStatus(c.situacao)
   const tipoFicha: OrderFormType =
     c.tipoFicha === 'assistencia' ? 'assistencia' : 'loja'
 
@@ -190,6 +198,7 @@ async function readRtdbErrorBody(res: Response): Promise<string> {
 
 export async function criarCliente(
   dados: Omit<Cliente, 'id'>,
+  authToken?: string,
 ): Promise<{ cliente: Cliente; status: number }> {
   if (!auth.currentUser) {
     throw new Error(
@@ -197,7 +206,7 @@ export async function criarCliente(
     )
   }
 
-  const url = await urlRtdb('clientes')
+  const url = await urlRtdb('clientes', authToken)
   const res = await fetch(url, {
     method: 'POST',
     signal: rtdbFetchSignal(),
@@ -222,11 +231,16 @@ export async function criarCliente(
 export async function atualizarCliente(
   id: string,
   dados: Partial<Cliente>,
+  authToken?: string,
 ): Promise<void> {
-  await fetchJson(`clientes/${id}`, {
-    method: 'PATCH',
-    body: JSON.stringify(withoutId(dados as Cliente)),
-  })
+  await fetchJson(
+    `clientes/${id}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify(withoutId(dados as Cliente)),
+    },
+    authToken,
+  )
 }
 
 /**
@@ -253,6 +267,35 @@ export async function atualizarEspelhoClientesPorOrdem(
 export async function removerCliente(id: string): Promise<void> {
   await fetchJson(`clientes/${id}`, {
     method: 'DELETE',
+  })
+}
+
+/** Perfil de login por UID Firebase (`/usuarios/{uid}`) — nome como no formulário (vários utilizadores). */
+export type PerfilUsuarioRtdb = {
+  nomeUsuario: string
+  atualizadoEm: string
+}
+
+/**
+ * Grava o nome de utilizador do login (ex.: CAPA) em `/usuarios/{uid}`.
+ * Complementa o `displayName` no Auth; regras RTDB devem permitir escrita em `usuarios/{uid}` ao próprio `auth.uid`.
+ */
+export async function salvarPerfilUsuarioRtdb(
+  uid: string,
+  nomeUsuario: string,
+): Promise<void> {
+  if (!auth.currentUser || auth.currentUser.uid !== uid) {
+    throw new Error(
+      'Sessão inválida ao gravar o perfil do utilizador.',
+    )
+  }
+  const payload: PerfilUsuarioRtdb = {
+    nomeUsuario: nomeUsuario.trim(),
+    atualizadoEm: new Date().toISOString(),
+  }
+  await fetchJson(`usuarios/${uid}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
   })
 }
 

@@ -1,5 +1,7 @@
 import type { User } from 'firebase/auth'
 
+import { authEmailToLoginUsername } from './authUsername'
+
 /** Data/hora local no formato YYYY-MM-DD HH:mm */
 export function formatarDataHoraLocalParaHistorico(d: Date = new Date()): string {
   const y = d.getFullYear()
@@ -15,7 +17,10 @@ export function historicoGravacaoFromUser(user: User): {
   dataCriadoOuModificado: string
 } {
   const nome =
-    user.displayName?.trim() || user.email || user.uid
+    user.displayName?.trim() ||
+    authEmailToLoginUsername(user.email) ||
+    user.email ||
+    user.uid
   return {
     criadoOuModificado: nome,
     dataCriadoOuModificado: formatarDataHoraLocalParaHistorico(),

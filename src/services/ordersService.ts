@@ -4,6 +4,7 @@ import {
   type FirebaseUser,
 } from './firebase'
 import type { Order } from '../types/order'
+import { normalizeOrderStatus } from '../utils/orderLabels'
 
 const ORDERS_COLLECTION = 'orders'
 
@@ -114,8 +115,10 @@ function normalizeOrder(id: string, data: any): Order {
     dueDate: data.dueDate ?? '',
     notes: data.notes ?? '',
     conditions: data.conditions ?? '',
-    status: data.status ?? 'analise',
+    status: normalizeOrderStatus(data.status),
     formType: data.formType ?? 'loja',
+    aceitoTermos:
+      typeof data.aceitoTermos === 'boolean' ? data.aceitoTermos : undefined,
     criadoOuModificado:
       typeof data.criadoOuModificado === 'string'
         ? data.criadoOuModificado
