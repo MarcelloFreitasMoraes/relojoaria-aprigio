@@ -19,11 +19,11 @@ export function buildOrderFormSchema(mode: OrderFormMode) {
       .string()
       .trim()
       .required('Informe o nome do cliente.'),
-    phone: yup.string().defined(),
+    phone: yup.string().ensure(),
     email: yup
       .string()
       .trim()
-      .defined()
+      .ensure()
       .test(
         'email',
         'E-mail inválido.',
@@ -35,11 +35,11 @@ export function buildOrderFormSchema(mode: OrderFormMode) {
     dialColor: yup.string().trim().required('Informe o mostrador.'),
     strap: yup.string().trim().required('Informe a pulseira.'),
     mechanism: yup.string().trim().required('Informe o mecanismo.'),
-    number: yup.string().defined(),
+    number: yup.string().ensure(),
     service: yup.string().trim().required('Informe o serviço.'),
     price: yup
       .number()
-      .required()
+      .required('Informe o valor.')
       .min(0, 'O valor não pode ser negativo.'),
     entryDate: yup
       .string()
@@ -71,7 +71,10 @@ export function buildOrderFormSchema(mode: OrderFormMode) {
         ['analise', 'servico', 'pronto', 'entregue'],
         'Escolha uma situação.',
       ),
-    formType: yup.string().oneOf(['loja', 'assistencia']).required(),
+    formType: yup
+      .string()
+      .oneOf(['loja', 'assistencia'], 'Selecione o tipo de ficha.')
+      .required('Selecione o tipo de ficha.'),
     criadoOuModificado: yup.string().optional(),
     dataCriadoOuModificado: yup.string().optional(),
     aceitoTermos: yup.boolean().optional(),

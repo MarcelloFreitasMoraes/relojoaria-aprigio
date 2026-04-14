@@ -111,6 +111,11 @@ export function OrderFormPage() {
   /** Centavos digitados para máscara de moeda (ex.: "1990" → R$ 19,90) */
   const [priceCentDigits, setPriceCentDigits] = useState("0");
   const orderPdfRef = useRef<HTMLDivElement>(null);
+  const todayIsoLocal = useMemo(() => {
+    const now = new Date();
+    const tzOffsetMs = now.getTimezoneOffset() * 60 * 1000;
+    return new Date(now.getTime() - tzOffsetMs).toISOString().slice(0, 10);
+  }, []);
 
   const mode: FormMode = id || clienteId ? "edit" : "create";
 
@@ -587,6 +592,7 @@ export function OrderFormPage() {
                 id="entryDate"
                 name="entryDate"
                 type="date"
+                min={todayIsoLocal}
                 value={formik.values.entryDate}
                 onChange={(e) => {
                   const next = e.target.value;
