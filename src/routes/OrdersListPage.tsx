@@ -170,6 +170,15 @@ export function OrdersListPage() {
     return isCapaUsername(username)
   }, [user?.displayName, user?.email])
 
+  const loggedInDisplayName = useMemo(() => {
+    if (!user) return ''
+    const fromProfile = user.displayName?.trim()
+    if (fromProfile) return fromProfile
+    const fromSyntheticEmail = authEmailToLoginUsername(user.email)
+    if (fromSyntheticEmail) return fromSyntheticEmail
+    return user.email ?? 'Utilizador'
+  }, [user])
+
   const loadFromRtdb = useCallback(async () => {
     setLoading(true)
     try {
@@ -396,7 +405,15 @@ export function OrdersListPage() {
             Controle interno de ordens de serviço
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2 sm:gap-3">
+          {loggedInDisplayName ? (
+            <span
+              className="max-w-40 truncate text-sm text-muted-foreground sm:max-w-64"
+              title={loggedInDisplayName}
+            >
+            Usuário Logado: {loggedInDisplayName}
+            </span>
+          ) : null}
           {isCapa ? (
             <Button
               type="button"
