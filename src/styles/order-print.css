@@ -66,12 +66,48 @@
   margin-bottom: 0.5rem;
 }
 
+.print-notes-inline {
+  margin: 0 0 0.4rem;
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+.print-notes-inline:last-child {
+  margin-bottom: 0;
+}
+
+/* Mesma lógica da ficha: 4 colunas, 2 células (Observação + Condições) lado a lado */
+.print-notes-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.4rem 1rem;
+  align-items: start;
+  margin-bottom: 0.75rem;
+}
+
+.print-notes-grid-cell {
+  grid-column: span 2;
+  margin: 0 !important;
+  min-width: 0;
+}
+
 .print-terms {
   margin-top: 0.75rem;
   font-size: 0.8rem;
 }
 
 @media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
   .no-print {
     display: none;
   }
@@ -79,9 +115,19 @@
   .print-layout {
     background: white;
     padding: 0;
+    min-height: 0;
   }
 
   .print-sheet {
+    width: 210mm;
+    max-height: 148.5mm;
+    min-height: 0;
+    box-sizing: border-box;
+    margin: 0;
+    padding-top: 6px;
+    padding-right: 16px;
+    padding-bottom: 0;
+    padding-left: 16px;
     border-radius: 0;
     box-shadow: none;
   }

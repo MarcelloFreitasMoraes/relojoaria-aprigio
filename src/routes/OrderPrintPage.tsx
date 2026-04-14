@@ -154,15 +154,15 @@ export function OrderPrintPage() {
           </div>
         </section>
 
-        <section className="print-notes">
-          <div>
-            <span className="print-label">Obs:</span>
-            <p>{order.notes}</p>
-          </div>
-          <div>
-            <span className="print-label">Condições:</span>
-            <p>{order.conditions}</p>
-          </div>
+        <section className="print-notes print-notes-grid">
+          <p className="print-notes-inline print-notes-grid-cell">
+            <span className="print-label">Observação:</span>{" "}
+            <span>{order.notes?.trim() || "—"}</span>
+          </p>
+          <p className="print-notes-inline print-notes-grid-cell">
+            <span className="print-label">Condições:</span>{" "}
+            <span>{order.conditions?.trim() || "—"}</span>
+          </p>
         </section>
 
         <section className="print-terms">

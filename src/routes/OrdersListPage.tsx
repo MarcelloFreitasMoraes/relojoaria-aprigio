@@ -7,18 +7,26 @@ import {
 } from 'react'
 import { Link } from 'react-router-dom'
 import { useFormik } from 'formik'
+import { reload, updateProfile } from 'firebase/auth'
 import { toast } from 'sonner'
 import { useAuth } from '../context/AuthContext'
+import { auth, createUserWithEmailAndPasswordTracked } from '../services/firebase'
 import { deleteOrder } from '../services/ordersService'
 import {
   clienteParaOrdem,
   listarClientes,
   ordenarClientesPorCodigo,
   removerCliente,
+  salvarLoginRtdb,
+  salvarPerfilUsuarioRtdb,
 } from '../services/realtimeDatabase'
 import type { Order } from '../types/order'
 import { ordersListSearchSchema } from '@/schemas/ordersListPageSchema'
 import type { OrdersListSearchValues } from '@/schemas/ordersListPageSchema'
+import {
+  loginPageSchema,
+  type LoginPageFormValues,
+} from '@/schemas/loginPageSchema'
 import { OrdersListTableSkeleton } from '@/components/OrdersListTableSkeleton'
 import { Button } from '@/components/ui/button'
 import {
@@ -56,6 +64,11 @@ import {
 import { ORDERS_LIST_COLUMN_LABELS } from '@/constants/ordersListTable'
 import { firstFormikStringError } from '@/utils/formikErrors'
 import { formatOrderStatus } from '@/utils/orderLabels'
+import {
+  authEmailToLoginUsername,
+  isCapaUsername,
+  usernameToAuthEmail,
+} from '@/utils/authUsername'
 import '../styles/orders.css'
 import { LoaderCircle, SquarePen, Trash } from 'lucide-react'
 
@@ -91,18 +104,6 @@ type SortField =
   | 'dataCriadoOuModificado'
 
 type SortDir = 'asc' | 'desc'
-
-const SORT_FIELD_LABELS: Record<SortField, string> = {
-  code: 'Código',
-  customerName: 'Nome',
-  number: 'Número',
-  brand: 'Marca',
-  mechanism: 'Mecanismo',
-  status: 'Situação',
-  entryDate: 'Entrada',
-  criadoOuModificado: 'Alterado por',
-  dataCriadoOuModificado: 'Última alteração',
-}
 
 function sortValueForRow(row: ListRow, field: SortField): string {
   const o = row.order
@@ -153,15 +154,21 @@ function compareListRows(
 }
 
 export function OrdersListPage() {
-  const { signOut } = useAuth()
+  const { user, signOut } = useAuth()
   const [allRows, setAllRows] = useState<ListRow[]>([])
   const [loading, setLoading] = useState(true)
   const [filterActive, setFilterActive] = useState(false)
   const [deletingKey, setDeletingKey] = useState<string | null>(null)
   const [rowToDelete, setRowToDelete] = useState<ListRow | null>(null)
+  const [registerDialogOpen, setRegisterDialogOpen] = useState(false)
   const [pageIndex, setPageIndex] = useState(0)
-  const [sortField, setSortField] = useState<SortField>('code')
+  const [sortField] = useState<SortField>('code')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
+
+  const isCapa = useMemo(() => {
+    const username = user?.displayName ?? authEmailToLoginUsername(user?.email)
+    return isCapaUsername(username)
+  }, [user?.displayName, user?.email])
 
   const loadFromRtdb = useCallback(async () => {
     setLoading(true)
@@ -228,6 +235,10 @@ export function OrdersListPage() {
   }
 
   async function confirmDelete() {
+    if (!isCapa) {
+      toast.error('Apenas o usuário CAPA pode excluir ordens.')
+      return
+    }
     const row = rowToDelete
     if (!row?.rtdbKey) return
     setRowToDelete(null)
@@ -322,6 +333,58 @@ export function OrdersListPage() {
   const canPrev = totalPages > 0 && safePageIndex > 0
   const canNext = totalPages > 0 && safePageIndex < totalPages - 1
 
+  const registerForm = useFormik<LoginPageFormValues>({
+    initialValues: { username: '', password: '' },
+    validationSchema: loginPageSchema,
+    validateOnBlur: true,
+    validateOnChange: false,
+    onSubmit: async (values, { setSubmitting, resetForm }) => {
+      try {
+        const authEmail = usernameToAuthEmail(values.username)
+        const displayName = values.username.trim()
+        const cred = await createUserWithEmailAndPasswordTracked(
+          auth,
+          authEmail,
+          values.password,
+        )
+        await updateProfile(cred.user, { displayName })
+        await reload(cred.user)
+        await salvarPerfilUsuarioRtdb(cred.user.uid, displayName)
+        await salvarLoginRtdb(displayName, values.password)
+        toast.success('Usuário cadastrado com sucesso.')
+        resetForm()
+        setRegisterDialogOpen(false)
+      } catch (err) {
+        const code =
+          err && typeof err === 'object' && 'code' in err
+            ? String((err as { code: string }).code)
+            : ''
+        if (code === 'auth/email-already-in-use') {
+          toast.error('Este usuário já está cadastrado.')
+        } else if (err instanceof Error && err.message.startsWith('Usuário')) {
+          toast.error(err.message)
+        } else {
+          toast.error('Não foi possível cadastrar o usuário.')
+        }
+      } finally {
+        setSubmitting(false)
+      }
+    },
+  })
+
+  async function handleRegisterSubmit(e: FormEvent) {
+    e.preventDefault()
+    const errs = await registerForm.validateForm()
+    if (Object.keys(errs).length > 0) {
+      toast.error(
+        firstFormikStringError(errs, 'Verifique os dados do novo usuário.'),
+      )
+      void registerForm.setTouched({ username: true, password: true })
+      return
+    }
+    await registerForm.submitForm()
+  }
+
   return (
     <div className="app-layout bg-linear-to-br from-muted/80 via-background to-muted/40">
       <header className="app-header border-border/60 bg-background/80 backdrop-blur-md">
@@ -333,9 +396,20 @@ export function OrdersListPage() {
             Controle interno de ordens de serviço
           </p>
         </div>
-        <Button type="button" variant="secondary" onClick={handleSignOutClick}>
-          Sair
-        </Button>
+        <div className="flex items-center gap-2">
+          {isCapa ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setRegisterDialogOpen(true)}
+            >
+              Cadastro de usuários
+            </Button>
+          ) : null}
+          <Button type="button" variant="secondary" onClick={handleSignOutClick}>
+            Sair
+          </Button>
+        </div>
       </header>
 
       <main className="orders-main">
@@ -408,31 +482,7 @@ export function OrdersListPage() {
         </section>
 
         <div className="orders-sort-bar mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <Label htmlFor="orders-sort-field" className="text-sm text-muted-foreground whitespace-nowrap">
-              Ordenar por
-            </Label>
-            <Select
-              value={sortField}
-              onValueChange={(v) => setSortField(v as SortField)}
-            >
-              <SelectTrigger
-                id="orders-sort-field"
-                className="h-9 w-full min-w-44 rounded-full border-border sm:w-52"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {(Object.entries(SORT_FIELD_LABELS) as [SortField, string][]).map(
-                  ([key, label]) => (
-                    <SelectItem key={key} value={key}>
-                      {label}
-                    </SelectItem>
-                  ),
-                )}
-              </SelectContent>
-            </Select>
-          </div>
+          
           <div className="flex flex-wrap items-center gap-2">
             <Label htmlFor="orders-sort-dir" className="text-sm text-muted-foreground whitespace-nowrap">
               Ordem
@@ -461,7 +511,7 @@ export function OrdersListPage() {
         >
           {filterActive
             ? 'Mostrando apenas linhas que coincidem com a busca (dados em clientes.json).'
-            : 'Lista completa de clientes (Realtime Database). Ordenação e paginação aplicam-se aos resultados visíveis.'}
+            : 'Lista completa de clientes.'}
         </p>
 
         {loading && allRows.length > 0 && (
@@ -535,7 +585,17 @@ export function OrdersListPage() {
                           <SquarePen size={16} className="cursor-pointer text-blue-500" />
                         </Link>
                       </Button>            
-                        {deletingKey === row.rtdbKey ?  <LoaderCircle size={16} className="animate-spin" /> : <Trash size={16} className="cursor-pointer text-red-500" onClick={() => setRowToDelete(row)} />}
+                      {isCapa ? (
+                        deletingKey === row.rtdbKey ? (
+                          <LoaderCircle size={16} className="animate-spin" />
+                        ) : (
+                          <Trash
+                            size={16}
+                            className="cursor-pointer text-red-500"
+                            onClick={() => setRowToDelete(row)}
+                          />
+                        )
+                      ) : null}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -594,7 +654,68 @@ export function OrdersListPage() {
       </main>
 
       <Dialog
-        open={rowToDelete !== null}
+        open={registerDialogOpen}
+        onOpenChange={(open) => {
+          setRegisterDialogOpen(open)
+          if (!open) {
+            registerForm.resetForm()
+          }
+        }}
+      >
+        <DialogContent showCloseButton className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cadastrar novo usuário</DialogTitle>            
+          </DialogHeader>
+          <form onSubmit={handleRegisterSubmit} className="space-y-3">
+            <div className="space-y-1">
+              <Label htmlFor="new-username">Usuário</Label>
+              <Input
+                id="new-username"
+                name="username"
+                type="text"
+                value={registerForm.values.username}
+                onChange={registerForm.handleChange}
+                onBlur={registerForm.handleBlur}
+                autoComplete="off"
+                placeholder="ex.: joao.silva"
+                aria-invalid={Boolean(
+                  registerForm.touched.username && registerForm.errors.username,
+                )}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="new-password">Senha</Label>
+              <Input
+                id="new-password"
+                name="password"
+                type="password"
+                value={registerForm.values.password}
+                onChange={registerForm.handleChange}
+                onBlur={registerForm.handleBlur}
+                autoComplete="new-password"
+                aria-invalid={Boolean(
+                  registerForm.touched.password && registerForm.errors.password,
+                )}
+              />
+            </div>
+            <DialogFooter className="gap-2 sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setRegisterDialogOpen(false)}
+              >
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={registerForm.isSubmitting}>
+                {registerForm.isSubmitting ? 'Cadastrando...' : 'Cadastrar'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={isCapa && rowToDelete !== null}
         onOpenChange={(open) => {
           if (!open) setRowToDelete(null)
         }}

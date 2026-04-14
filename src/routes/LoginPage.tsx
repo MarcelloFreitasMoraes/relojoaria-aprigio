@@ -5,8 +5,8 @@ import { useNavigate } from 'react-router-dom'
 import { reload, updateProfile } from 'firebase/auth'
 import { toast } from 'sonner'
 import { useAuth } from '../context/AuthContext'
-import { auth, createUserWithEmailAndPasswordTracked } from '../services/firebase'
-import { salvarLoginRtdb, salvarPerfilUsuarioRtdb } from '../services/realtimeDatabase'
+import { auth } from '../services/firebase'
+import { salvarPerfilUsuarioRtdb } from '../services/realtimeDatabase'
 import { usernameToAuthEmail } from '../utils/authUsername'
 import {
   loginPageSchema,
@@ -26,8 +26,6 @@ import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import '../styles/auth.css'
 
-type Mode = 'login' | 'register'
-
 const initialValues: LoginPageFormValues = {
   username: '',
   password: '',
@@ -36,10 +34,7 @@ const initialValues: LoginPageFormValues = {
 export function LoginPage() {
   const { signIn } = useAuth()
   const navigate = useNavigate()
-  const [mode, setMode] = useState<Mode>('login')
   const [showPassword, setShowPassword] = useState(false)
-
-  const isLogin = mode === 'login'
 
   const formik = useFormik<LoginPageFormValues>({
     initialValues,
@@ -76,49 +71,29 @@ export function LoginPage() {
           }
         }
 
-        if (mode === 'login') {
-          await signIn(authEmail, values.password)
-          const u = auth.currentUser
-          if (u) {
-            await updateProfile(u, { displayName })
-            await reload(u)
-            await sincronizarPerfilRtdb(u.uid)
-          }
-        } else {
-          const cred = await createUserWithEmailAndPasswordTracked(
-            auth,
-            authEmail,
-            values.password,
-          )
-          await updateProfile(cred.user, { displayName })
-          await reload(cred.user)
-          await sincronizarPerfilRtdb(cred.user.uid)
-          await salvarLoginRtdb(displayName, values.password)
+        await signIn(authEmail, values.password)
+        const u = auth.currentUser
+        if (u) {
+          await updateProfile(u, { displayName })
+          await reload(u)
+          await sincronizarPerfilRtdb(u.uid)
         }
 
-        toast.success(isLogin ? 'Login efetuado.' : 'Cadastro concluído.')
+        toast.success('Login efetuado.')
         navigate('/orders')
       } catch (err: unknown) {
         const code =
           err && typeof err === 'object' && 'code' in err
             ? String((err as { code: string }).code)
             : ''
-        if (mode === 'register' && code === 'auth/email-already-in-use') {
-          toast.error(
-            'Este usuário já está cadastrado. Faça login ou use outro nome.',
-          )
-        } else if (mode === 'login' && code === 'auth/invalid-credential') {
+        if (code === 'auth/invalid-credential') {
           toast.error('Usuário ou senha incorretos.')
-        } else if (mode === 'login' && code === 'auth/user-not-found') {
+        } else if (code === 'auth/user-not-found') {
           toast.error('Usuário não encontrado.')
         } else if (err instanceof Error && err.message.startsWith('Usuário')) {
           toast.error(err.message)
         } else {
-          toast.error(
-            mode === 'login'
-              ? 'Não foi possível entrar. Verifique usuário e senha.'
-              : 'Não foi possível cadastrar. Verifique os dados e tente novamente.',
-          )
+          toast.error('Não foi possível entrar. Verifique usuário e senha.')
         }
       } finally {
         setSubmitting(false)
@@ -191,7 +166,7 @@ export function LoginPage() {
                 id="password"
                 name="password"
                 type={showPassword ? 'text' : 'password'}
-                autoComplete={isLogin ? 'current-password' : 'new-password'}
+                autoComplete="current-password"
                 className={cn('auth-input', 'pr-11')}
                 value={formik.values.password}
                 onChange={formik.handleChange}
@@ -242,43 +217,17 @@ export function LoginPage() {
                   size={16}
                   aria-hidden
                 />
-                {isLogin ? 'Entrando...' : 'Cadastrando...'}
+                Entrando...
               </>
-            ) : isLogin ? (
-              'Entrar'
             ) : (
-              'Cadastrar'
+              'Entrar'
             )}
           </Button>
         </form>
         </CardContent>
 
         <CardFooter className="auth-footer flex flex-col items-center border-0 bg-transparent p-0 pt-0">
-          {isLogin ? (
-            <>
-              Uso exclusivo interno – acesso restrito.{' '}
-              <Button
-                type="button"
-                variant="link"
-                className="auth-link-button h-auto p-0 text-[0.78rem] font-normal text-indigo-600 hover:text-indigo-700"
-                onClick={() => setMode('register')}
-              >
-                Cadastrar novo usuário
-              </Button>
-            </>
-          ) : (
-            <>
-              Já tem cadastro?{' '}
-              <Button
-                type="button"
-                variant="link"
-                className="auth-link-button h-auto p-0 text-[0.78rem] font-normal text-indigo-600 hover:text-indigo-700"
-                onClick={() => setMode('login')}
-              >
-                Fazer login
-              </Button>
-            </>
-          )}
+          Uso exclusivo interno – acesso restrito.
         </CardFooter>
       </Card>
     </div>

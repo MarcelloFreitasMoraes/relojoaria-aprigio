@@ -4,11 +4,15 @@
  */
 export const AUTH_EMAIL_DOMAIN = 'relojoaria-aprigio-auth.local'
 
-export function usernameToAuthEmail(username: string): string {
-  const u = username
+export function normalizeAuthUsername(username: string): string {
+  return username
     .trim()
     .toLowerCase()
     .replace(/[^a-z0-9._-]/g, '')
+}
+
+export function usernameToAuthEmail(username: string): string {
+  const u = normalizeAuthUsername(username)
   if (u.length < 2) {
     throw new Error('Usuário: use pelo menos 2 letras ou números (a-z, 0-9, . _ -).')
   }
@@ -35,4 +39,9 @@ export function authEmailToLoginUsername(
     return local
   }
   return undefined
+}
+
+export function isCapaUsername(username: string | null | undefined): boolean {
+  if (!username) return false
+  return normalizeAuthUsername(username) === 'capa'
 }
