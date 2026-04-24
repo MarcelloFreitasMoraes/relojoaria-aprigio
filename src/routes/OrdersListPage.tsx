@@ -415,13 +415,18 @@ export function OrdersListPage() {
             </span>
           ) : null}
           {isCapa ? (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setRegisterDialogOpen(true)}
-            >
-              Cadastro de usuários
-            </Button>
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setRegisterDialogOpen(true)}
+              >
+                Cadastro de usuários
+              </Button>
+              {/* <Button asChild variant="outline">
+                <Link to="/users">Lista de usuários</Link>
+              </Button> */}
+            </>
           ) : null}
           <Button type="button" variant="secondary" onClick={handleSignOutClick}>
             Sair

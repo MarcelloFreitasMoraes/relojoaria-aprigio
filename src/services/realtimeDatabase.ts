@@ -276,6 +276,11 @@ export type PerfilUsuarioRtdb = {
   atualizadoEm: string
 }
 
+export type LoginRtdb = {
+  usuario?: string
+  senha?: string
+}
+
 /**
  * Grava o nome de utilizador do login (ex.: CAPA) em `/usuarios/{uid}`.
  * Complementa o `displayName` no Auth; regras RTDB devem permitir escrita em `usuarios/{uid}` ao próprio `auth.uid`.
@@ -297,6 +302,54 @@ export async function salvarPerfilUsuarioRtdb(
     method: 'PUT',
     body: JSON.stringify(payload),
   })
+}
+
+/**
+ * Lê o mapa `/usuarios` (todos os perfis visíveis às regras RTDB para o token actual).
+ */
+export async function listarPerfisUsuariosRtdb(): Promise<RtdbMap<PerfilUsuarioRtdb>> {
+  return fetchJson<RtdbMap<PerfilUsuarioRtdb>>('usuarios')
+}
+
+export async function listarLoginsRtdb(): Promise<RtdbMap<LoginRtdb>> {
+  return fetchJson<RtdbMap<LoginRtdb>>('login')
+}
+
+export async function removerLoginRtdb(id: string): Promise<void> {
+  await fetchJson(`login/${id}`, {
+    method: 'DELETE',
+  })
+}
+
+export async function removerPerfilUsuarioRtdb(uid: string): Promise<void> {
+  await fetchJson(`usuarios/${uid}`, {
+    method: 'DELETE',
+  })
+}
+
+/**
+ * Exclui perfil em `/usuarios/{uid}` e remove o primeiro registo correspondente
+ * em `/login` comparando `usuario` com `nomeUsuario` (case-insensitive).
+ */
+export async function removerUsuarioEPrimeiroLoginRtdb(
+  uid: string,
+  nomeUsuario: string,
+): Promise<void> {
+  await removerPerfilUsuarioRtdb(uid)
+
+  const alvo = nomeUsuario.trim().toLowerCase()
+  if (!alvo) return
+
+  const loginMap = await listarLoginsRtdb()
+  if (!loginMap) return
+
+  const match = Object.entries(loginMap).find(([, value]) => {
+    const usuario = value?.usuario
+    return typeof usuario === 'string' && usuario.trim().toLowerCase() === alvo
+  })
+  if (!match) return
+
+  await removerLoginRtdb(match[0])
 }
 
 /**

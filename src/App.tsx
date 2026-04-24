@@ -4,6 +4,7 @@ import { OrdersListPage } from './routes/OrdersListPage'
 import { OrderFormPage } from './routes/OrderFormPage'
 import { OrderPrintPage } from './routes/OrderPrintPage'
 import { ProtectedRoute } from './routes/ProtectedRoute'
+import { UsersListPage } from './routes/UsersListPage'
 
 function App() {
   return (
@@ -18,6 +19,15 @@ function App() {
         element={
           <ProtectedRoute>
             <OrdersListPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/users"
+        element={
+          <ProtectedRoute>
+            <UsersListPage />
           </ProtectedRoute>
         }
       />

@@ -6,12 +6,13 @@
     },
     "login": {
       ".read": "auth != null",
-      ".write": "auth != null"
+      ".write": "auth != null && auth.token.name === 'CAPA'"
     },
     "usuarios": {
+      ".read": "auth != null",
       "$uid": {
         ".read": "auth != null",
-        ".write": "auth != null && auth.uid === $uid"
+        ".write": "auth != null && (auth.uid === $uid || auth.token.name === 'CAPA') && (newData.exists() || data.child('nomeUsuario').val() !== 'CAPA')"
       }
     }
   }
