@@ -26,6 +26,7 @@ import {
   criarCliente,
   getRtdbAuthToken,
   obterCliente,
+  obterClientePorIdFirestore,
   removerCliente,
 } from "../services/realtimeDatabase";
 import { allocateNextOrdemServicoCode } from "../services/orderCounter";
@@ -52,7 +53,7 @@ import "../styles/order-form.css";
 
 type FormMode = "create" | "edit";
 
-type OrderFormValues = Order;
+type OrderFormValues = Omit<Order, "status"> & { status: OrderStatus | "" };
 
 const emptyOrder: OrderFormValues = {
   code: "",
@@ -72,7 +73,7 @@ const emptyOrder: OrderFormValues = {
   dueDate: "",
   notes: "",
   conditions: "",
-  status: "analise",
+  status: "",
   formType: "loja",
   aceitoTermos: false,
 };
@@ -119,10 +120,18 @@ export function OrderFormPage() {
         const existing = await getOrderById(id!);
         if (cancelled) return;
         if (existing) {
+          let statusFromMirror = existing.status;
+          if (existing.id) {
+            const clienteEspelho = await obterClientePorIdFirestore(existing.id);
+            if (clienteEspelho) {
+              statusFromMirror = clienteParaOrdem(clienteEspelho).status;
+            }
+          }
           setOrderData({
             ...existing,
             phone: maskPhoneBR(existing.phone || ""),
             email: normalizeEmailInput(existing.email || ""),
+            status: normalizeOrderStatus(statusFromMirror),
             aceitoTermos: existing.aceitoTermos ?? false,
           });
         }
@@ -143,6 +152,7 @@ export function OrderFormPage() {
             ...o,
             phone: maskPhoneBR(o.phone || ""),
             email: normalizeEmailInput(o.email || ""),
+            status: normalizeOrderStatus(o.status),
             aceitoTermos: false,
           });
         }
@@ -165,7 +175,6 @@ export function OrderFormPage() {
   }, [id, clienteId]);
 
   const validationSchema = useMemo(() => buildOrderFormSchema(mode), [mode]);
-
   const formik = useFormik<OrderFormValues>({
     enableReinitialize: true,
     initialValues: orderData,
@@ -309,14 +318,15 @@ export function OrderFormPage() {
     setPriceCentDigits(priceToCentDigits(formik.values.price));
   }, [initialLoading, formik.values.price]);
 
-  /** Alinha `formik.values.status` com o valor normalizado (evita UI com opção visível mas estado vazio / erro Yup). */
   useEffect(() => {
     if (initialLoading) return;
-    const fixed = normalizeOrderStatus(formik.values.status);
-    if (formik.values.status !== fixed) {
-      void formik.setFieldValue("status", fixed, false);
+    const nextStatus = orderData.status
+      ? normalizeOrderStatus(orderData.status)
+      : "";
+    if (formik.values.status !== nextStatus) {
+      void formik.setFieldValue("status", nextStatus, false);
     }
-  }, [initialLoading, formik.values.status, formik.setFieldValue]);
+  }, [initialLoading, orderData.status, formik.values.status, formik.setFieldValue]);
 
   async function handleFormSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -622,7 +632,11 @@ export function OrderFormPage() {
               <div className="order-form-field min-w-0">
                 <Label htmlFor="status">Situação *</Label>
                 <Select
-                  value={normalizeOrderStatus(formik.values.status)}
+                  value={
+                    formik.values.status
+                      ? normalizeOrderStatus(formik.values.status)
+                      : undefined
+                  }
                   onValueChange={(v) => {
                     void formik.setFieldValue("status", v as OrderStatus);
                     void formik.setFieldTouched("status", true);

@@ -56,10 +56,31 @@ export type Cliente = {
   observacoes?: string
   condicoes?: string
   situacao?: string
+  status?: string
   tipoFicha?: string
   criadoOuModificado?: string
   dataCriadoOuModificado?: string
   [key: string]: any
+}
+
+function extractClienteStatus(c: Cliente): unknown {
+  const direct = [c.status, c.situacao].find(
+    (v) => typeof v === 'string' && v.trim(),
+  )
+  if (direct) return direct
+
+  for (const [key, value] of Object.entries(c)) {
+    if (value == null) continue
+    const keyNorm = key
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+    if (keyNorm.includes('status') || keyNorm.includes('situacao')) {
+      const text = String(value).trim()
+      if (text) return value
+    }
+  }
+  return undefined
 }
 
 /** Monta o objeto enviado a `/clientes` com todos os dados da ficha (espelho da ordem). */
@@ -136,7 +157,7 @@ export async function listarClientes(): Promise<Cliente[]> {
 
 /** Converte registo RTDB `/clientes` para o formato de ordem usado na UI. */
 export function clienteParaOrdem(c: Cliente): Order {
-  const statusOk = normalizeOrderStatus(c.situacao)
+  const statusOk = normalizeOrderStatus(extractClienteStatus(c))
   const tipoFicha: OrderFormType =
     c.tipoFicha === 'assistencia' ? 'assistencia' : 'loja'
 
@@ -183,6 +204,14 @@ export async function obterCliente(id: string): Promise<Cliente | null> {
   const data = await fetchJson<Cliente | null>(`clientes/${id}`)
   if (!data) return null
   return { id, ...data }
+}
+
+export async function obterClientePorIdFirestore(
+  idFirestore: string,
+): Promise<Cliente | null> {
+  const clientes = await listarClientes()
+  const found = clientes.find((c) => c.idFirestore === idFirestore)
+  return found ?? null
 }
 
 async function readRtdbErrorBody(res: Response): Promise<string> {

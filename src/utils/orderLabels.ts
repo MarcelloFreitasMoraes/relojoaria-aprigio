@@ -10,7 +10,14 @@ export function normalizeOrderStatus(raw: unknown): OrderStatus {
   const s = String(raw ?? '')
     .trim()
     .toLowerCase()
-  return VALID_STATUS.includes(s as OrderStatus) ? (s as OrderStatus) : 'analise'
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+  if (VALID_STATUS.includes(s as OrderStatus)) return s as OrderStatus
+  if (s.includes('entreg')) return 'entregue'
+  if (s.includes('pronto')) return 'pronto'
+  if (s.includes('serv')) return 'servico'
+  if (s.includes('analis')) return 'analise'
+  return 'analise'
 }
 
 /** Rótulo em português para situação da ordem (lista, impressão, etc.). */

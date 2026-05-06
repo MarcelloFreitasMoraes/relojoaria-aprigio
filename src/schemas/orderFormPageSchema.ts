@@ -1,7 +1,5 @@
 import * as yup from 'yup'
 
-import { normalizeOrderStatus } from '@/utils/orderLabels'
-
 export type OrderFormMode = 'create' | 'edit'
 
 /**
@@ -65,12 +63,12 @@ export function buildOrderFormSchema(mode: OrderFormMode) {
     notes: yup.string().optional(),
     conditions: yup.string().optional(),
     status: yup
-      .mixed()
-      .transform((v) => normalizeOrderStatus(v))
+      .string()
       .oneOf(
         ['analise', 'servico', 'pronto', 'entregue'],
         'Escolha uma situação.',
-      ),
+      )
+      .required('Escolha uma situação.'),
     formType: yup
       .string()
       .oneOf(['loja', 'assistencia'], 'Selecione o tipo de ficha.')
